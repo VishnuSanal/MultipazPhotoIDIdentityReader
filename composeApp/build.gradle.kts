@@ -128,11 +128,11 @@ kotlin {
 }
 
 android {
-    namespace = "org.multipaz.identityreader"
+    namespace = "org.multipaz.photoididentityreader"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "org.multipaz.identityreader"
+        applicationId = "org.multipaz.photoididentityreader"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = projectVersionCode

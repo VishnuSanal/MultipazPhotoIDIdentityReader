@@ -1,4 +1,4 @@
-rootProject.name = "MultipazIdentityReader"
+rootProject.name = "MultipazPhotoIDIdentityReader"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

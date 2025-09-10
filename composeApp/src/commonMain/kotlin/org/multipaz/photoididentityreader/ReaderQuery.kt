@@ -32,9 +32,13 @@ enum class ReaderQuery(
         icon = Icons.Filled.Person,
         displayName = "Identification",
     ),*/
+    VALID_MEMBERSHIP_CARD(
+        icon = Icons.Filled.Person,
+        displayName = "Valid Membership Card",
+    ),
     PHOTO_ID(
         icon = Icons.Filled.Person,
-        displayName = "Photo ID (Wholesale App)",
+        displayName = "All Membership Card Data",
     ),
 
     ;
@@ -152,6 +156,20 @@ suspend fun generateEncodedDeviceRequest(
             mdlNs.put("expiry_date", intentToRetain)
         }*/
 
+        ReaderQuery.VALID_MEMBERSHIP_CARD -> {
+            // Use PhotoID namespace instead of mDL namespace
+            val photoIdNs = itemsToRequest.getOrPut(PhotoID.PHOTO_ID_NAMESPACE) { mutableMapOf() }
+            photoIdNs.put("person_id", intentToRetain)
+            photoIdNs.put("family_name_unicode", intentToRetain)
+            val photoIdIso232202Ns = itemsToRequest.getOrPut(PhotoID.ISO_23220_2_NAMESPACE) { mutableMapOf() }
+            photoIdIso232202Ns.put("given_name", intentToRetain)
+            photoIdIso232202Ns.put("portrait", intentToRetain)
+            photoIdIso232202Ns.put("document_number", intentToRetain)
+            photoIdIso232202Ns.put("issue_date", intentToRetain)
+            photoIdIso232202Ns.put("expiry_date", intentToRetain)
+            photoIdIso232202Ns.put("age_over_21", intentToRetain)
+        }
+
         ReaderQuery.PHOTO_ID -> {
             // Use PhotoID namespace instead of mDL namespace
             val photoIdNs = itemsToRequest.getOrPut(PhotoID.PHOTO_ID_NAMESPACE) { mutableMapOf() }
@@ -175,7 +193,6 @@ suspend fun generateEncodedDeviceRequest(
             photoIdNs.put("age_over_21", intentToRetain)
             val photoIdIso232202Ns = itemsToRequest.getOrPut(PhotoID.ISO_23220_2_NAMESPACE) { mutableMapOf() }
             photoIdIso232202Ns.put("portrait", intentToRetain)
-
         }
     }
     // val docType = DrivingLicense.MDL_DOCTYPE

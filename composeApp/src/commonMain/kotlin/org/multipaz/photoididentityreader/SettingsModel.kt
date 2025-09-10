@@ -151,7 +151,7 @@ class SettingsModel private constructor(
     }
 
     val logTransactions = MutableStateFlow<Boolean>(false)
-    val selectedQueryName = MutableStateFlow<String>(ReaderQuery.PHOTO_ID.name)
+    val selectedQueryName = MutableStateFlow<String>(ReaderQuery.VALID_MEMBERSHIP_CARD.name)
     val builtInIssuersUpdatedAt = MutableStateFlow<Instant>(Instant.DISTANT_PAST)
     val builtInIssuersVersion = MutableStateFlow<Long>(Long.MIN_VALUE)
     val readerAuthMethod = MutableStateFlow<ReaderAuthMethod>(ReaderAuthMethod.STANDARD_READER_AUTH)

@@ -380,13 +380,20 @@ private fun ShowResultsScreenSuccess(
                         onShowDetailedResults = onShowDetailedResults
                     )
                 }
-*/
+*/             ReaderQuery.VALID_MEMBERSHIP_CARD -> {
+                ShowMemberShipCard(
+                    document = document,
+                    onShowDetailedResults = onShowDetailedResults
+                )
+            }
+
                 ReaderQuery.PHOTO_ID -> {
                     ShowIdentification(
                         document = document,
                         onShowDetailedResults = onShowDetailedResults
                     )
                 }
+
             }
         }
     }
@@ -531,6 +538,83 @@ private fun ShowIdentification(
                 val value = dataElement.render(TimeZone.currentSystemDefault())
 
                 if (namespace.name == DrivingLicense.MDL_NAMESPACE && dataElementName == "portrait") {
+                    continue
+                }
+
+                KeyValuePairText(key, value)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShowMemberShipCard(
+    document: MdocDocument,
+    onShowDetailedResults: (() -> Unit)?
+) {
+    val portraitBitmap = remember { getPortraitBitmapPhotoId(document) }
+
+    val composition by rememberLottieComposition {
+        LottieCompositionSpec.JsonString(
+            Res.readBytes("files/success_animation.json").decodeToString()
+        )
+    }
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+    )
+
+    Image(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp)
+            .padding(16.dp)
+            .let {
+                if (onShowDetailedResults != null) {
+                    it.combinedClickable(
+                        onClick = {},
+                        onDoubleClick = { onShowDetailedResults() }
+                    )
+                } else it
+            },
+        bitmap = portraitBitmap!!,
+        contentDescription = null
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Image(
+            painter = rememberLottiePainter(
+                composition = composition,
+                progress = { progress },
+            ),
+            contentDescription = null,
+            modifier = Modifier.size(50.dp)
+        )
+        Text(
+            text = "Identity data verified",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape = RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        for (namespace in document.namespaces) {
+            for ((dataElementName, dataElement) in namespace.dataElements) {
+                val key = if (dataElement.attribute != null) {
+                    dataElement.attribute!!.displayName
+                } else {
+                    dataElementName
+                }
+                val value = dataElement.render(TimeZone.currentSystemDefault())
+
+                if (namespace.name == PhotoID.ISO_23220_2_NAMESPACE && dataElementName == "portrait") {
                     continue
                 }
 

@@ -357,7 +357,7 @@ private fun StartScreenWithPermissions(
                             centralClientModeUuid = UUID.randomUUID(),
                         )
                     ),
-                    onHandover = onNfcHandover
+//                    onHandover = onNfcHandover
                 )
             }
         }
@@ -456,7 +456,7 @@ private fun StartScreenWithPermissions(
                                     centralClientModeUuid = UUID.randomUUID(),
                                 )
                             ),
-                            onHandover = onNfcHandover
+//                            onHandover = onNfcHandover
                         )
                     }
                 }

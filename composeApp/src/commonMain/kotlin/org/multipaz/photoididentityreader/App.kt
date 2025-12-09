@@ -27,7 +27,7 @@ import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.Simple
 import org.multipaz.compose.prompt.PromptDialogs
 import org.multipaz.documenttype.DocumentTypeRepository
-import org.multipaz.documenttype.knowntypes.PhotoID
+import org.multipaz.documenttype.knowntypes.LoyaltyID
 import org.multipaz.identityreader.BuildConfig
 import org.multipaz.mdoc.transport.MdocTransportOptions
 import org.multipaz.trustmanagement.CompositeTrustManager
@@ -106,7 +106,7 @@ class App(
             documentTypeRepository = DocumentTypeRepository()
             // documentTypeRepository.addDocumentType(DrivingLicense.getDocumentType())
 
-            documentTypeRepository.addDocumentType(PhotoID.getDocumentType())
+            documentTypeRepository.addDocumentType(LoyaltyID.getDocumentType())
 
             // Note: builtInTrustManager will be populated at app startup, see updateBuiltInIssuers()
             //   and its call-sites

@@ -51,12 +51,16 @@ import org.multipaz.claim.MdocClaim
 import org.multipaz.compose.decodeImage
 import org.multipaz.documenttype.DocumentTypeRepository
 import org.multipaz.documenttype.knowntypes.DrivingLicense
+import org.multipaz.documenttype.knowntypes.LoyaltyID
 import org.multipaz.documenttype.knowntypes.PhotoID
 import org.multipaz.mdoc.response.DeviceResponseParser
 import org.multipaz.trustmanagement.TrustManager
 import org.multipaz.trustmanagement.TrustPoint
+import org.multipaz.util.Logger
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+private const val TAG = "ShowResultsScreen"
 
 @Composable
 fun ShowResultsScreen(
@@ -387,12 +391,12 @@ private fun ShowResultsScreenSuccess(
                 )
             }
 
-                ReaderQuery.PHOTO_ID -> {
-                    ShowIdentification(
-                        document = document,
-                        onShowDetailedResults = onShowDetailedResults
-                    )
-                }
+//                ReaderQuery.PHOTO_ID -> {
+//                    ShowIdentification(
+//                        document = document,
+//                        onShowDetailedResults = onShowDetailedResults
+//                    )
+//                }
 
             }
         }
@@ -409,7 +413,8 @@ private fun ShowAgeOver(
 
     // val portraitBitmap = remember { getPortraitBitmapPhotoId(document) }
 
-    val mdlNameSpace = document.namespaces.find { it.name == DrivingLicense.MDL_NAMESPACE }
+//    val mdlNameSpace = document.namespaces.find { it.name == DrivingLicense.MDL_NAMESPACE }
+    val mdlNameSpace = document.namespaces.find { it.name == LoyaltyID.LOYALTY_ID_NAMESPACE }
 
     //val mdlNameSpace = document.namespaces.find { it.name == PhotoID.ISO_23220_2_NAMESPACE }
 
@@ -661,17 +666,37 @@ private fun getPortraitBitmap(document: MdocDocument): ImageBitmap? {
 }
 
 private fun getPortraitBitmapPhotoId(document: MdocDocument): ImageBitmap? {
-    if (document.docType != PhotoID.PHOTO_ID_DOCTYPE) {
+    Logger.i(TAG, "getPortraitBitmapPhotoId - Document type: ${document.docType}")
+    Logger.i(TAG, "getPortraitBitmapPhotoId - Number of namespaces: ${document.namespaces.size}")
+    
+    // Log all namespaces and their data elements
+    for (namespace in document.namespaces) {
+        Logger.i(TAG, "getPortraitBitmapPhotoId - Namespace: ${namespace.name}")
+        Logger.i(TAG, "getPortraitBitmapPhotoId - Number of data elements in ${namespace.name}: ${namespace.dataElements.size}")
+        
+        for ((dataElementName, dataElement) in namespace.dataElements) {
+            Logger.i(TAG, "getPortraitBitmapPhotoId - Data element: $dataElementName")
+            Logger.i(TAG, "getPortraitBitmapPhotoId - Display name: ${dataElement.displayName}")
+            Logger.i(TAG, "getPortraitBitmapPhotoId - Value type: ${dataElement.value::class.simpleName}")
+            Logger.i(TAG, "getPortraitBitmapPhotoId - Value: ${dataElement.value}")
+        }
+    }
+    
+    if (document.docType != LoyaltyID.LOYALTY_ID_DOCTYPE) {
+        Logger.i(TAG, "getPortraitBitmapPhotoId - Document type mismatch, expected: ${LoyaltyID.LOYALTY_ID_DOCTYPE}")
         return null
     }
-    val photoIDNamespace = document.namespaces.find { it.name == PhotoID.ISO_23220_2_NAMESPACE }
+    val photoIDNamespace = document.namespaces.find { it.name == LoyaltyID.LOYALTY_ID_NAMESPACE }
     if (photoIDNamespace == null) {
+        Logger.i(TAG, "getPortraitBitmapPhotoId - PhotoID namespace not found, expected: ${LoyaltyID.LOYALTY_ID_NAMESPACE}")
         return null
     }
     val portraitClaim = photoIDNamespace.dataElements["portrait"]
     if (portraitClaim == null) {
+        Logger.i(TAG, "getPortraitBitmapPhotoId - Portrait claim not found")
         return null
     }
+    Logger.i(TAG, "getPortraitBitmapPhotoId - Found portrait claim, decoding image")
     return decodeImage(portraitClaim.value.asBstr)
 }
 

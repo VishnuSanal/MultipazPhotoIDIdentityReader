@@ -17,7 +17,7 @@ import org.multipaz.cbor.buildCborArray
 import org.multipaz.crypto.Crypto
 import org.multipaz.crypto.EcPrivateKey
 import org.multipaz.mdoc.connectionmethod.MdocConnectionMethod
-import org.multipaz.mdoc.engagement.EngagementParser
+import org.multipaz.mdoc.engagement.DeviceEngagement
 import org.multipaz.mdoc.role.MdocRole
 import org.multipaz.mdoc.sessionencryption.SessionEncryption
 import org.multipaz.mdoc.transport.MdocTransport
@@ -104,7 +104,8 @@ class ReaderModel {
             return _encodedSessionTranscript!!
         }
 
-    private var deviceEngagement: EngagementParser.Engagement? = null
+//    private var deviceEngagement: EngagementParser.Engagement? = null
+    private var deviceEngagement: DeviceEngagement? = null
     private var _eReaderKey: EcPrivateKey? = null
     val eReaderKey: EcPrivateKey
         get() {
@@ -149,8 +150,9 @@ class ReaderModel {
         this.existingTransport = existingTransport
         _state.value = State.WAITING_FOR_DEVICE_REQUEST
 
-        deviceEngagement = EngagementParser(encodedDeviceEngagement.toByteArray()).parse()
-        _eReaderKey = Crypto.createEcPrivateKey(deviceEngagement!!.eSenderKey.curve)
+//        deviceEngagement = EngagementParser(encodedDeviceEngagement.toByteArray()).parse()
+        deviceEngagement = DeviceEngagement.fromDataItem(Cbor.decode(encodedDeviceEngagement.toByteArray()))
+        _eReaderKey = Crypto.createEcPrivateKey(deviceEngagement!!.eDeviceKey.curve)
         val encodedEReaderKey = Cbor.encode(_eReaderKey!!.publicKey.toCoseKey().toDataItem())
         _encodedSessionTranscript = ByteString(
             Cbor.encode(
@@ -179,7 +181,7 @@ class ReaderModel {
         check(_state.value == State.WAITING_FOR_START)
         _scope = scope
         _state.value = State.CONNECTING
-        println("Starting...")
+        Logger.d(TAG, "Starting reader flow...")
         _scope!!.launch {
             val (result, error) = try {
                 Pair(
@@ -194,7 +196,7 @@ class ReaderModel {
                 Logger.w(TAG, "Error doing reader flow", e)
                 Pair(null, e)
             }
-            println("Setting state to COMPLETED")
+            Logger.d(TAG, "Setting state to COMPLETED")
             _result = result
             _error = error
             deviceEngagement = null
@@ -220,7 +222,7 @@ class ReaderModel {
         handover: DataItem,
         existingTransport: MdocTransport?
     ): ReaderModelResult {
-        println("In doReaderFlow()")
+        Logger.d(TAG, "In doReaderFlow()")
 
         val timeOfEngagementReceived = Clock.System.now()
 
@@ -260,14 +262,15 @@ class ReaderModel {
         val sessionEncryption = SessionEncryption(
             MdocRole.MDOC_READER,
             eReaderKey,
-            deviceEngagement!!.eSenderKey,
+            deviceEngagement!!.eDeviceKey,
             encodedSessionTranscript.toByteArray(),
         )
 
-        println("OK, with transport: $transport")
+        Logger.d(TAG, "Transport type: ${transport::class.simpleName}")
+        Logger.d(TAG, "Connection method: ${transport.connectionMethod}")
         val connectionMethod = transport.connectionMethod
         try {
-            transport.open(deviceEngagement!!.eSenderKey)
+            transport.open(deviceEngagement!!.eDeviceKey)
             transport.sendMessage(
                 sessionEncryption.encryptMessage(
                     messagePlaintext = encodedDeviceRequest!!.toByteArray(),

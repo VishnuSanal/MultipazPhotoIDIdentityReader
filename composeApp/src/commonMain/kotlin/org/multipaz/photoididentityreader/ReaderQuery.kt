@@ -5,12 +5,17 @@ import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.io.bytestring.ByteString
+import org.multipaz.cbor.Cbor
+import org.multipaz.cbor.RawCbor
 import org.multipaz.crypto.Algorithm
 import org.multipaz.crypto.EcPrivateKey
+import org.multipaz.crypto.X509Cert
 import org.multipaz.crypto.X509CertChain
 import org.multipaz.documenttype.knowntypes.DrivingLicense
+import org.multipaz.documenttype.knowntypes.LoyaltyID
 import org.multipaz.documenttype.knowntypes.PhotoID
-import org.multipaz.mdoc.request.DeviceRequestGenerator
+import org.multipaz.mdoc.request.DocRequestInfo
+import org.multipaz.mdoc.request.buildDeviceRequest
 import org.multipaz.securearea.SecureArea
 import org.multipaz.util.Logger
 
@@ -36,10 +41,10 @@ enum class ReaderQuery(
         icon = Icons.Filled.Person,
         displayName = "Valid Membership Card",
     ),
-    PHOTO_ID(
-        icon = Icons.Filled.Person,
-        displayName = "All Membership Card Data",
-    ),
+//    PHOTO_ID(
+//        icon = Icons.Filled.Person,
+//        displayName = "All Membership Card Data",
+//    ),
 
     ;
 
@@ -64,9 +69,8 @@ enum class ReaderQuery(
                     intentToRetain = settingsModel.logTransactions.value,
                     encodedSessionTranscript = encodedSessionTranscript.toByteArray(),
                     readerKey = null,
-                    readerKeyAlias = null,
-                    readerKeySecureArea = null,
-                    readerKeyCertification = null
+                    readerCert = null,
+                    readerRootCert = null
                 )
             }
             ReaderAuthMethod.IDENTITY_FROM_GOOGLE_ACCOUNT,
@@ -94,9 +98,8 @@ enum class ReaderQuery(
                     intentToRetain = settingsModel.logTransactions.value,
                     encodedSessionTranscript = encodedSessionTranscript.toByteArray(),
                     readerKey = null,
-                    readerKeyAlias = keyInfo?.alias,
-                    readerKeySecureArea = keyInfo?.let { readerBackendClient.secureArea },
-                    readerKeyCertification = keyCertification
+                    readerCert = keyCertification?.certificates?.get(0),
+                    readerRootCert = keyCertification?.certificates?.get(1)
                 ).also {
                     keyInfo?.let { readerBackendClient.markKeyAsUsed(it) }
                 }
@@ -107,9 +110,8 @@ enum class ReaderQuery(
                     intentToRetain = settingsModel.logTransactions.value,
                     encodedSessionTranscript = encodedSessionTranscript.toByteArray(),
                     readerKey = settingsModel.customReaderAuthKey.value!!,
-                    readerKeyAlias = null,
-                    readerKeySecureArea = null,
-                    readerKeyCertification = settingsModel.customReaderAuthCertChain.value!!
+                    readerCert = settingsModel.customReaderAuthCertChain.value!!.certificates[0],
+                    readerRootCert = settingsModel.customReaderAuthCertChain.value!!.certificates[1]
                 )
             }
         }
@@ -122,9 +124,8 @@ suspend fun generateEncodedDeviceRequest(
     intentToRetain: Boolean,
     encodedSessionTranscript: ByteArray,
     readerKey: EcPrivateKey?,
-    readerKeyAlias: String?,
-    readerKeySecureArea: SecureArea?,
-    readerKeyCertification: X509CertChain?
+    readerCert: X509Cert?,
+    readerRootCert: X509Cert?
 ): ByteArray {
 
     val itemsToRequest = mutableMapOf<String, MutableMap<String, Boolean>>()
@@ -158,79 +159,70 @@ suspend fun generateEncodedDeviceRequest(
 
         ReaderQuery.VALID_MEMBERSHIP_CARD -> {
             // Use PhotoID namespace instead of mDL namespace
-            val photoIdNs = itemsToRequest.getOrPut(PhotoID.PHOTO_ID_NAMESPACE) { mutableMapOf() }
-            photoIdNs.put("person_id", intentToRetain)
-            photoIdNs.put("family_name_unicode", intentToRetain)
-            val photoIdIso232202Ns = itemsToRequest.getOrPut(PhotoID.ISO_23220_2_NAMESPACE) { mutableMapOf() }
-            photoIdIso232202Ns.put("given_name", intentToRetain)
-            photoIdIso232202Ns.put("portrait", intentToRetain)
-            photoIdIso232202Ns.put("document_number", intentToRetain)
-            photoIdIso232202Ns.put("issue_date", intentToRetain)
-            photoIdIso232202Ns.put("expiry_date", intentToRetain)
-            photoIdIso232202Ns.put("age_over_21", intentToRetain)
-        }
-
-        ReaderQuery.PHOTO_ID -> {
-            // Use PhotoID namespace instead of mDL namespace
-            val photoIdNs = itemsToRequest.getOrPut(PhotoID.PHOTO_ID_NAMESPACE) { mutableMapOf() }
-            // photoIdNs.put("portrait", intentToRetain)
-            photoIdNs.put("person_id", intentToRetain)
-            photoIdNs.put("given_name", intentToRetain)
+            val photoIdNs = itemsToRequest.getOrPut(LoyaltyID.LOYALTY_ID_NAMESPACE) { mutableMapOf() }
+            photoIdNs.put("membership_number", intentToRetain)
             photoIdNs.put("family_name", intentToRetain)
-            photoIdNs.put("birth_date", intentToRetain)
-            photoIdNs.put("birth_place", intentToRetain)
-            photoIdNs.put("sex", intentToRetain)
-            photoIdNs.put("resident_address", intentToRetain)
-            photoIdNs.put("resident_city", intentToRetain)
-            photoIdNs.put("resident_state", intentToRetain)
-            photoIdNs.put("resident_postal_code", intentToRetain)
-            photoIdNs.put("resident_country", intentToRetain)
-            photoIdNs.put("issuing_authority", intentToRetain)
-            photoIdNs.put("document_number", intentToRetain)
+            photoIdNs.put("given_name", intentToRetain)
+            photoIdNs.put("portrait", intentToRetain)
             photoIdNs.put("issue_date", intentToRetain)
             photoIdNs.put("expiry_date", intentToRetain)
-            photoIdNs.put("age_over_18", intentToRetain)
             photoIdNs.put("age_over_21", intentToRetain)
-            val photoIdIso232202Ns = itemsToRequest.getOrPut(PhotoID.ISO_23220_2_NAMESPACE) { mutableMapOf() }
-            photoIdIso232202Ns.put("portrait", intentToRetain)
         }
+
+//        ReaderQuery.PHOTO_ID -> {
+//            // Use PhotoID namespace instead of mDL namespace
+//            val photoIdNs = itemsToRequest.getOrPut(PhotoID.PHOTO_ID_NAMESPACE) { mutableMapOf() }
+//            // photoIdNs.put("portrait", intentToRetain)
+//            photoIdNs.put("person_id", intentToRetain)
+//            photoIdNs.put("given_name", intentToRetain)
+//            photoIdNs.put("family_name", intentToRetain)
+//            photoIdNs.put("birth_date", intentToRetain)
+//            photoIdNs.put("birth_place", intentToRetain)
+//            photoIdNs.put("sex", intentToRetain)
+//            photoIdNs.put("resident_address", intentToRetain)
+//            photoIdNs.put("resident_city", intentToRetain)
+//            photoIdNs.put("resident_state", intentToRetain)
+//            photoIdNs.put("resident_postal_code", intentToRetain)
+//            photoIdNs.put("resident_country", intentToRetain)
+//            photoIdNs.put("issuing_authority", intentToRetain)
+//            photoIdNs.put("document_number", intentToRetain)
+//            photoIdNs.put("issue_date", intentToRetain)
+//            photoIdNs.put("expiry_date", intentToRetain)
+//            photoIdNs.put("age_over_18", intentToRetain)
+//            photoIdNs.put("age_over_21", intentToRetain)
+//            val photoIdIso232202Ns = itemsToRequest.getOrPut(PhotoID.ISO_23220_2_NAMESPACE) { mutableMapOf() }
+//            photoIdIso232202Ns.put("portrait", intentToRetain)
+//        }
     }
     // val docType = DrivingLicense.MDL_DOCTYPE
-    val docType = PhotoID.PHOTO_ID_DOCTYPE
+//    val docType = PhotoID.PHOTO_ID_DOCTYPE
+    val docType = LoyaltyID.LOYALTY_ID_DOCTYPE
 
     // TODO: for now we're only requesting an mDL, in the future we might request many different doctypes
 
-    val deviceRequestGenerator = DeviceRequestGenerator(encodedSessionTranscript)
-    if (readerKey != null) {
-        deviceRequestGenerator.addDocumentRequest(
-            docType = docType,
-            itemsToRequest = itemsToRequest,
-            requestInfo = null,
-            readerKey = readerKey,
-            signatureAlgorithm = readerKey.curve.defaultSigningAlgorithmFullySpecified,
-            readerKeyCertificateChain = readerKeyCertification,
-        )
-    } else if (readerKeyAlias != null) {
-        deviceRequestGenerator.addDocumentRequest(
-            docType = docType,
-            itemsToRequest = itemsToRequest,
-            requestInfo = null,
-            readerKeySecureArea = readerKeySecureArea!!,
-            readerKeyAlias = readerKeyAlias,
-            readerKeyCertificateChain = readerKeyCertification!!,
-            keyUnlockData = null
-        )
-    } else {
-        deviceRequestGenerator.addDocumentRequest(
-            docType = docType,
-            itemsToRequest = itemsToRequest,
-            requestInfo = null,
-            readerKey = null,
-            signatureAlgorithm = Algorithm.UNSET,
-            readerKeyCertificateChain = null,
-        )
-    }
-    return deviceRequestGenerator.generate()
+    return Cbor.encode(buildDeviceRequest(
+        sessionTranscript = RawCbor(encodedSessionTranscript)
+    ) {
+        if (readerKey != null && readerCert != null && readerRootCert != null) {
+            addDocRequest(
+                docType = docType,
+                nameSpaces = itemsToRequest,
+                docRequestInfo = DocRequestInfo(),
+                readerKey = readerKey,
+                signatureAlgorithm = readerKey.curve.defaultSigningAlgorithm,
+                readerKeyCertificateChain = X509CertChain(listOf(readerCert, readerRootCert)),
+            )
+        } else {
+            addDocRequest(
+                docType = docType,
+                nameSpaces = itemsToRequest,
+                docRequestInfo = DocRequestInfo(),
+                readerKey = null,
+                signatureAlgorithm = Algorithm.UNSET,
+                readerKeyCertificateChain = null,
+            )
+        }
+    }.toDataItem())
 }
 
 
